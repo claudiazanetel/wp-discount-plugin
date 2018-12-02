@@ -46,7 +46,7 @@ class VoucherPostType {
             'labels'                => $labels,
             'hierarchical'          => false,
             'description'           => 'Vouchers',
-            'supports'              => ['title','editor'],
+            'supports'              => ['title','editor','thumbnail'],
             'taxonomies'            => [],
             'public'                => true,
             'show_ui'               => true,
@@ -120,7 +120,25 @@ class VoucherPostType {
             update_post_meta($post_id, static::$IS_REDEEMED, 1);
         } else {
             update_post_meta($post_id, static::$IS_REDEEMED, 0);
+            self::generateQrCode(get_post_permalink($post_id), $post_id);
         }
+    }
+
+    private static function generateQrCode($permalink, $post_id) {
+        $post = get_post($post_id);
+        $downloaded = download_url("https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . urlencode($permalink));
+        var_dump($downloaded);
+        if (is_wp_error($downloaded)) {
+            wp_die($downloaded);
+        }
+        $file_array['name'] = $post->id . "_" . $post->name . ".png";
+        $file_array['tmp_name'] = $downloaded;
+        $id = media_handle_sideload($file_array, $post_id, "QRCode for " . $post->name);
+        if (is_wp_error($id)) {
+            @unlink($downloaded);
+            wp_die($id);
+        }
+        set_post_thumbnail($post_id, $id);
     }
 
     public static function makePrivate($data) {
