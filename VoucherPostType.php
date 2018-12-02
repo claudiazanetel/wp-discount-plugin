@@ -187,10 +187,17 @@ class VoucherPostType {
         $validTo = self::readField(static::$VALID_TO, $post->ID);
         $isRedeemed = self::readField(static::$IS_REDEEMED, $post->ID);
         
-        $status = "<p style='color:red; font-weight:bold;'>".__("This voucher is no longer valid", static::$PLUGIN_NAME)."</p>";
+        
         if(!$isRedeemed && strtotime($validTo) >= time()) {
             $status = "<p style='color:green; font-weight:bold;'>".__("This voucher is valid", static::$PLUGIN_NAME)."</p>";
             update_post_meta($post->ID, static::$IS_REDEEMED, 1);
+        } else {
+            $status = "<p style='color:red; font-weight:bold;'>".__("This voucher is no longer valid", static::$PLUGIN_NAME)."</p>";
+            if($isRedeemed) {
+                $status .= "<p style='color:red; font-weight:bold;'><code>".__("Already redeemed", static::$PLUGIN_NAME)."</code></p>";
+            } else {
+                $status .= "<p style='color:red; font-weight:bold;'><code>".__("Expired, was valid until ", static::$PLUGIN_NAME) . $validTo."</code></p>";
+            }
         }
 
         return $status.$post->post_content;
