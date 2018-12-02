@@ -19,6 +19,8 @@ class VoucherPostType {
         add_action('add_meta_boxes', [__CLASS__, 'registerEditVoucherView']);
         // register save voucher function
         add_action('save_post_'.static::$TYPE_NAME, [__CLASS__, 'saveVoucher']);
+        // ensure the post is private
+        add_filter('wp_insert_post_data', [__CLASS__, 'makePrivate']);
         // register voucher clean uo
         add_action('delete_post', [__CLASS__, 'deleteVoucher']);
     }
@@ -119,6 +121,13 @@ class VoucherPostType {
         } else {
             update_post_meta($post_id, static::$IS_REDEEMED, 0);
         }
+    }
+
+    public static function makePrivate($data) {
+        if($data['post_type'] == static::$TYPE_NAME) {
+            $data['post_status'] = 'private';
+        }
+        return $data;
     }
 
     /**
