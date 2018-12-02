@@ -23,6 +23,8 @@ class VoucherPostType {
         add_filter('wp_insert_post_data', [__CLASS__, 'makePrivate']);
         // register voucher clean uo
         add_action('delete_post', [__CLASS__, 'deleteVoucher']);
+        // redeem voucher
+        add_action('the_content', [__CLASS__, 'redeem']);
     }
 
     public static function register()
@@ -127,7 +129,7 @@ class VoucherPostType {
     private static function generateQrCode($permalink, $post_id) {
         $post = get_post($post_id);
         $downloaded = download_url("https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . urlencode($permalink));
-        var_dump($downloaded);
+        
         if (is_wp_error($downloaded)) {
             wp_die($downloaded);
         }
@@ -169,5 +171,32 @@ class VoucherPostType {
             $raw_is_redeemed = array_shift(get_post_custom_values(static::$IS_REDEEMED, $post->ID));
             return !empty($raw_is_redeemed) && $raw_is_redeemed ? TRUE : FALSE;
         }
+    }
+
+    public static function test($post) {
+        $post->post_content = "aaaa";
+    }
+
+    public static function redeem($content) {
+        global $post;
+
+        if(!(get_post_type() == static::$TYPE_NAME && is_singular())) {
+            return;
+        }
+
+        if(!current_user_can('administrator')) {
+            wp_die(__("You don't have enough privileges to see this page", static::$PLUGIN_NAME));
+        }
+
+        $validTo = self::readField(static::$VALID_TO, $post->ID);
+        $isRedeemed = self::readField(static::$IS_REDEEMED, $post->ID);
+        
+        $status = "<p style='color:red; font-weight:bold;'>".__("This voucher is no longer valid", static::$PLUGIN_NAME)."</p>";
+        if(!$isRedeemed && strtotime($validTo) >= time()) {
+            $status = "<p style='color:green; font-weight:bold;'>".__("This voucher is valid", static::$PLUGIN_NAME)."</p>";
+            update_post_meta($post->ID, static::$IS_REDEEMED, 1);
+        }
+
+        return $status.$post->post_content;
     }
 }
