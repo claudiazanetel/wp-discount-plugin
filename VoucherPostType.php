@@ -173,10 +173,6 @@ class VoucherPostType {
         }
     }
 
-    public static function test($post) {
-        $post->post_content = "aaaa";
-    }
-
     public static function redeem($content) {
         global $post;
 
