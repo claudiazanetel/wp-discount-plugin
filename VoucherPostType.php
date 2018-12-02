@@ -128,6 +128,10 @@ class VoucherPostType {
 
     private static function generateQrCode($permalink, $post_id) {
         $post = get_post($post_id);
+        if($post->post_status == "auto-draft") {
+            return;
+        }
+        
         $downloaded = download_url("https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . urlencode($permalink));
         
         if (is_wp_error($downloaded)) {
@@ -144,7 +148,7 @@ class VoucherPostType {
     }
 
     public static function makePrivate($data) {
-        if($data['post_type'] == static::$TYPE_NAME) {
+        if($data['post_type'] == static::$TYPE_NAME && in_array($data['post_status'], ["future", "publish"])) {
             $data['post_status'] = 'private';
         }
         return $data;
