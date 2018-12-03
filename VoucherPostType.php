@@ -21,8 +21,8 @@ class VoucherPostType {
         add_action('save_post_'.static::$TYPE_NAME, [__CLASS__, 'saveVoucher']);
         // ensure the post is private
         add_filter('wp_insert_post_data', [__CLASS__, 'makePrivate']);
-        // register voucher clean uo
-        add_action('delete_post', [__CLASS__, 'deleteVoucher']);
+        // register voucher clean up
+        add_action('before_delete_post', [__CLASS__, 'deleteVoucher']);
         // redeem voucher
         add_action('the_content', [__CLASS__, 'redeem']);
     }
@@ -112,6 +112,12 @@ class VoucherPostType {
      * This function saves the voucher's data
      */
     public static function saveVoucher($post_id) {
+        
+        $post = get_post($post_id);
+        if(in_array($post->post_status, ["auto-draft", "trash"])) {
+            return;
+        }
+
         if(isset($_POST[static::$VALID_TO]) && !empty($_POST[static::$VALID_TO])) {
             update_post_meta($post_id, static::$VALID_TO, sanitize_text_field($_POST[static::$VALID_TO]));
         } else {
@@ -128,23 +134,29 @@ class VoucherPostType {
 
     private static function generateQrCode($permalink, $post_id) {
         $post = get_post($post_id);
-        if($post->post_status == "auto-draft") {
-            return;
-        }
+
+        // delete old qrCode
+        self::deleteQrCode($post->ID);
         
         $downloaded = download_url("https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . urlencode($permalink));
         
         if (is_wp_error($downloaded)) {
             wp_die($downloaded);
         }
-        $file_array['name'] = $post->id . "_" . $post->name . ".png";
-        $file_array['tmp_name'] = $downloaded;
-        $id = media_handle_sideload($file_array, $post_id, "QRCode for " . $post->name);
+
+        $file = [
+            'name'     => $post->ID . "_" . $post->post_name . ".png",
+            'type'     => 'image/png',
+            'tmp_name' => $downloaded,
+            'error'    => 0,
+            'size'     => filesize($downloaded),
+        ];
+        $id = media_handle_sideload($file, $post->ID, "QRCode for " . $post->post_name);
         if (is_wp_error($id)) {
             @unlink($downloaded);
             wp_die($id);
         }
-        set_post_thumbnail($post_id, $id);
+        set_post_thumbnail($post->ID, $id);
     }
 
     public static function makePrivate($data) {
@@ -158,23 +170,32 @@ class VoucherPostType {
      * This function deletes the voucher's QR code
      */
     public static function deleteVoucher($post_id) {
-        global $post_type;
-
-        if ($post_type != static::$TYPE_NAME) {
+        $post = get_post($post_id);
+        if ($post->post_type != static::$TYPE_NAME) {
             return;
         }
-        
-        // here we should delete the QR code image
+
+        self::deleteQrCode($post->ID);
     }
 
     private static function readField($field, $post_id) {
         if($field == static::$VALID_TO) {
-            return array_shift(get_post_custom_values(static::$VALID_TO, $post_id));
+            return get_post_custom_values(static::$VALID_TO, $post_id) != null
+                ? array_shift(get_post_custom_values(static::$VALID_TO, $post_id))
+                : "";
         }
         if($field == static::$IS_REDEEMED) {
-            $raw_is_redeemed = array_shift(get_post_custom_values(static::$IS_REDEEMED, $post->ID));
+            $raw_is_redeemed = get_post_custom_values(static::$IS_REDEEMED, $post->ID) != null
+                ? array_shift(get_post_custom_values(static::$IS_REDEEMED, $post->ID))
+                : FALSE;
             return !empty($raw_is_redeemed) && $raw_is_redeemed ? TRUE : FALSE;
         }
+    }
+
+    private static function deleteQrCode($post_id) {
+        foreach(get_attached_media('image', $post_id) as $attachment){
+            wp_delete_attachment($attachment->ID, true);
+        } 
     }
 
     public static function redeem($content) {
