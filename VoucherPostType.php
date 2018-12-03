@@ -192,7 +192,7 @@ class VoucherPostType {
         $isRedeemed = self::readField(static::$IS_REDEEMED, $post->ID);
         
         
-        if(!$isRedeemed && strtotime($validTo) >= time()) {
+        if(!$isRedeemed && (empty($validTo) || strtotime($validTo) >= time())) {
             $status = "<p style='color:green; font-weight:bold;'>".__("This voucher is valid", static::$PLUGIN_NAME)."</p>";
             update_post_meta($post->ID, static::$IS_REDEEMED, 1);
         } else {
