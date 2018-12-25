@@ -90,7 +90,8 @@ class VoucherPostType {
         add_meta_box(
             'voucher_box',
             __('Voucher data'),
-            [__CLASS__, 'renderEditVoucherView']
+            [__CLASS__, 'renderEditVoucherView'],
+            static::$TYPE_NAME
         );
     }
 
