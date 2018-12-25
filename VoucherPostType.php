@@ -111,8 +111,7 @@ class VoucherPostType {
     /**
      * This function saves the voucher's data
      */
-    public static function saveVoucher($post_id) {
-        
+    public static function saveVoucher($post_id) { 
         $post = get_post($post_id);
         if(in_array($post->post_status, ["auto-draft", "trash"])) {
             return;
@@ -202,7 +201,7 @@ class VoucherPostType {
         global $post;
 
         if(!(get_post_type() == static::$TYPE_NAME && is_singular())) {
-            return;
+            return $content;
         }
 
         if(!current_user_can('administrator')) {
